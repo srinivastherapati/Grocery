@@ -18,4 +18,5 @@ public class Products {
     private String  category;
     private String promotionCode;
     private double rating;
+    private boolean isRefundable=true;
 }

@@ -18,4 +18,8 @@ public class Orders {
     private double totalAmount;
     private String deliveryOption;
     private List<String> orderItemIds;
+
+    private List<String> refundedProducts;
+    private List<String> notRefundedProducts;
+    private Double totalRefundAmount;
 }

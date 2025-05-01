@@ -103,7 +103,7 @@ const AllOrders = () => {
           <TableHead>
             <TableRow>
             <TableCell style={styles.tableHeader}>Products</TableCell>
-              <TableCell style={styles.tableHeader}>Order ID</TableCell>
+          
               <TableCell style={styles.tableHeader}>Customer Name</TableCell>
               <TableCell style={styles.tableHeader}>Customer Email</TableCell>
               <TableCell style={styles.tableHeader} align="center">
@@ -147,7 +147,7 @@ const AllOrders = () => {
                         ))}
                       </select>
                     </TableCell>
-                    <TableCell>{order.orderId}</TableCell>
+                   
                     <TableCell>{order.customerName}</TableCell>
                     <TableCell>{order.customerEmail}</TableCell>
                     <TableCell>${order.totalPayment.toFixed(2)}</TableCell>

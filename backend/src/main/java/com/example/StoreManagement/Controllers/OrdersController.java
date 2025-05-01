@@ -5,8 +5,10 @@ import com.example.StoreManagement.Repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -131,40 +133,49 @@ public class OrdersController {
 //
 //        return ResponseEntity.ok("Order placed successfully with ID: " +order);
 //    }
-    @GetMapping("/customer/{customerId}")
-    public ResponseEntity<?> getCustomerOrders(@PathVariable String customerId) {
-        List<Orders> orders = ordersRepo.findByCustomerId(customerId);
-        if (orders.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.EMPTY_LIST);
-        }
+@GetMapping("/customer/{customerId}")
+public ResponseEntity<?> getCustomerOrders(@PathVariable String customerId) {
+    List<Orders> orders = ordersRepo.findByCustomerId(customerId);
+    if (orders.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.emptyList());
+    }
 
-        // Fetch order details with associated products
-        List<Map<String, Object>> response = orders.stream().map(order -> {
-            Map<String, Object> orderDetails = new HashMap<>();
-            orderDetails.put("orderId", order.getId());
-            orderDetails.put("totalPayment", order.getTotalAmount());
-            orderDetails.put("orderDate",order.getOrderDate());
-            orderDetails.put("status",order.getStatus());
-            orderDetails.put("deliveryType",order.getDeliveryOption());
-            // Fetch products from OrderItems
-            List<OrderItems> items = orderItemsRepo.findByOrderId(order.getId());
-            List<Map<String, Object>> products = items.stream().map(item -> {
-                Map<String, Object> productDetails = new HashMap<>();
-                Products product = productsRepo.findById(item.getProductId()).orElse(null);
-                if (product != null) {
-                    productDetails.put("productId", product.getId());
-                    productDetails.put("name", product.getName());
-                }
-                productDetails.put("quantityBought", item.getQuantity());
-                return productDetails;
-            }).collect(Collectors.toList());
+    List<Map<String, Object>> response = orders.stream().map(order -> {
+        Map<String, Object> orderDetails = new HashMap<>();
+        orderDetails.put("orderId", order.getId());
+        orderDetails.put("totalPayment", order.getTotalAmount());
+        orderDetails.put("orderDate", order.getOrderDate());
+        orderDetails.put("status", order.getStatus());
+        orderDetails.put("deliveryType", order.getDeliveryOption());
 
-            orderDetails.put("products", products);
-            return orderDetails;
+        // Fetch order items
+        List<OrderItems> items = orderItemsRepo.findByOrderId(order.getId());
+        List<Map<String, Object>> products = items.stream().map(item -> {
+            Map<String, Object> productDetails = new HashMap<>();
+            Products product = productsRepo.findById(item.getProductId()).orElse(null);
+            if (product != null) {
+                productDetails.put("productId", product.getId());
+                productDetails.put("name", product.getName());
+            }
+            productDetails.put("quantityBought", item.getQuantity());
+            return productDetails;
         }).collect(Collectors.toList());
 
-        return ResponseEntity.ok(response);
-    }
+        orderDetails.put("products", products);
+
+        // Include return details only if status is RETURNED
+        if ("RETURNED".equalsIgnoreCase(order.getStatus())) {
+            orderDetails.put("refundedProducts", order.getRefundedProducts() != null ? order.getRefundedProducts() : Collections.emptyList());
+            orderDetails.put("notRefundedProducts", order.getNotRefundedProducts() != null ? order.getNotRefundedProducts() : Collections.emptyList());
+            orderDetails.put("totalRefundAmount", order.getTotalRefundAmount() != null ? order.getTotalRefundAmount() : 0.0);
+        }
+
+        return orderDetails;
+    }).collect(Collectors.toList());
+
+    return ResponseEntity.ok(response);
+}
+
 
 
     @GetMapping("/{orderId}")
@@ -192,6 +203,7 @@ public class OrdersController {
             orderDetails.put("orderDate",order.getOrderDate());
             orderDetails.put("status",order.getStatus());
             Customer customer=customerRepository.findById(order.getCustomerId()).orElse(null);
+            assert customer != null;
             orderDetails.put("customerName",customer.getFirstName());
             orderDetails.put("customerEmail",customer.getEmail());
             orderDetails.put("deliveryType",order.getDeliveryOption());
@@ -216,22 +228,16 @@ public class OrdersController {
     @PostMapping("/cancel-order/{orderId}")
     public ResponseEntity<?> cancelOrder(@PathVariable String orderId) {
         // Retrieve the payment for the given order
-        Optional<Payments> paymentOptional = paymentsRepo.findByOrderId(orderId);
-        if (paymentOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Payment not found for this order");
-        }
-        Payments payment = paymentOptional.get();
+       if(!IssueRefund(orderId)){
+           return ResponseEntity.status(HttpStatus.NOT_FOUND).body("payment not fouynbd");
+       }
 
-        // Update the payment status
-        payment.setStatus("REFUNDED");
-        paymentsRepo.save(payment);
-
-        // Process refund if payment method is card
-        if ("CARD".equalsIgnoreCase(payment.getPaymentMethod())) {
-            // Here you can implement refund logic with a payment gateway (e.g., Stripe, PayPal)
-            // For now, we'll just simulate a successful refund.
-            System.out.println("Refund of amount " + payment.getTotalAmount() + " processed successfully");
-        }
+//        // Process refund if payment method is card
+//        if ("CARD".equalsIgnoreCase(payment.getPaymentMethod())) {
+//            // Here you can implement refund logic with a payment gateway (e.g., Stripe, PayPal)
+//            // For now, we'll just simulate a successful refund.
+//            System.out.println("Refund of amount " + payment.getTotalAmount() + " processed successfully");
+//        }
 
         Optional<Orders> orderOptional = ordersRepo.findById(orderId);
         if (orderOptional.isEmpty()) {
@@ -264,6 +270,70 @@ public class OrdersController {
         order.setStatus(status);
         ordersRepo.save(order);
         return ResponseEntity.ok("Order status updated to " + status);
+    }
+
+    @PostMapping("/refund/{orderId}")
+    public ResponseEntity<?> refundOrder(@PathVariable String orderId) {
+        try{
+        Optional<Orders> orderOpt = ordersRepo.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Order not found");
+        }
+
+        Orders order = orderOpt.get();
+        List<String> refundedProducts = new ArrayList<>();
+        List<String> notRefundedProducts = new ArrayList<>();
+        double totalRefundAmount=0;
+        List<OrderItems> orderItems = orderItemsRepo.findByOrderId(orderId);
+            if(!IssueRefund(orderId)){
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("payment not found");
+            }
+
+            for (OrderItems item : orderItems) {
+                Optional<Products> productOptional = productsRepo.findById(item.getProductId());
+                if (productOptional.isPresent()) {
+                    Products products=productOptional.get();
+                    if(products.isRefundable()){
+                        totalRefundAmount+=products.getPrice()*item.getQuantity();
+                        refundedProducts.add(products.getName());
+                        products.setStock(products.getStock() + item.getQuantity());
+                        productsRepo.save(products);
+                    }
+                    else{
+                        notRefundedProducts.add(products.getName()+" (Non-refundable category)");
+                    }
+                }
+            }
+            order.setStatus("RETURNED");
+            order.setRefundedProducts(refundedProducts);
+            order.setNotRefundedProducts(notRefundedProducts);
+            order.setTotalRefundAmount(totalRefundAmount);
+            ordersRepo.save(order);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("refundedProducts", refundedProducts);
+        response.put("notRefundedProducts", notRefundedProducts);
+        response.put("totalRefundAmount",totalRefundAmount);
+        response.put("message", "Refund processed successfully for eligible products.");
+
+        return ResponseEntity.ok(response);
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    private boolean IssueRefund(String orderId){
+        Optional<Payments> paymentOptional = paymentsRepo.findByOrderId(orderId);
+        if (paymentOptional.isEmpty()) {
+            return false ;
+        }
+        Payments payment = paymentOptional.get();
+
+        // Update the payment status
+        payment.setStatus("REFUNDED");
+        paymentsRepo.save(payment);
+        return  true;
     }
 
 }

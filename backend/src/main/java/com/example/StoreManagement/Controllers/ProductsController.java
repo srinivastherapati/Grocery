@@ -41,6 +41,10 @@ public class ProductsController {
         }
         try {
             Category validCategory = Category.valueOf(products.getCategory().toUpperCase());
+            if(validCategory.equals(Category.valueOf("VEGETABLES")) ||
+                    validCategory.equals(Category.valueOf("DAIRY"))){
+                products.setRefundable(false);
+            }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid category: " + products.getCategory());
         }
