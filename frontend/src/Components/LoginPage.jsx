@@ -64,7 +64,7 @@ function LoginPage({ setLoggedIn, setUserData }) {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        backgroundImage: "url('/background.png')", // Path to your image
+        backgroundImage: "url('/background.png')", 
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

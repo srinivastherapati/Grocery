@@ -51,33 +51,18 @@ function App() {
           />
           
           <div style={{ marginLeft: "250px", width: "calc(100% - 250px)" }}>
-            <Header isAdmin={userData.role==='admin'} />
-            {currentPage == "food" && (
-              <Meals isAdmin={userData.role==='admin'} category={"food"} />
-            )}
-            {currentPage == "dairy" && (
-              <Meals isAdmin={userData.role==='admin'} category={"dairy"} />
-            )}
-            {currentPage == "snacks" && (
-              <Meals isAdmin={userData.role==='admin'} category={"snacks"} />
-            )}
-             {currentPage == "meat" && (
-              <Meals isAdmin={userData.role==='admin'} category={"meat"} />
-            )}
-             {currentPage == "beverages" && (
-              <Meals isAdmin={userData.role==='admin'} category={"beverages"} />
-            )}
-             {currentPage == "vegetables" && (
-              <Meals isAdmin={userData.role==='admin'} category={"vegetables"} />
-            )}
-            {currentPage == "tobacco" && (
-              <Meals isAdmin={userData.role==='admin'} category={"tobacco"} />
-            )}
-            {userData.role!='admin' && currentPage == "your-orders" && <CustomerOrders />}
-            {userData.role==='admin' && currentPage == "all-orders" && <AllOrders />}
-            {userData.role==='admin' && currentPage == "all-users" && <AllUsers />}
-            <Cart />
-            <Checkout />
+  <Header isAdmin={userData.role === 'admin'} />
+  
+  {currentPage && !["your-orders", "all-orders", "all-users"].includes(currentPage) && (
+    <Meals isAdmin={userData.role === 'admin'} category={currentPage} />
+  )}
+  
+  {userData.role !== 'admin' && currentPage === "your-orders" && <CustomerOrders />}
+  {userData.role === 'admin' && currentPage === "all-orders" && <AllOrders />}
+  {userData.role === 'admin' && currentPage === "all-users" && <AllUsers />}
+  
+  <Cart />
+  <Checkout />
           </div>
         </div>
       </CartContextProvider>

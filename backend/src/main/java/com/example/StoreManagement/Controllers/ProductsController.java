@@ -39,14 +39,8 @@ public class ProductsController {
         if(products.getImageUrl()==null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("product image required");
         }
-        try {
-            Category validCategory = Category.valueOf(products.getCategory().toUpperCase());
-            if(validCategory.equals(Category.valueOf("VEGETABLES")) ||
-                    validCategory.equals(Category.valueOf("DAIRY"))){
-                products.setRefundable(false);
-            }
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid category: " + products.getCategory());
+        if(products.getCategory().equalsIgnoreCase("vegetables") || products.getCategory().equalsIgnoreCase("dairy")){
+            products.setRefundable(false);
         }
 
         if (products.getStock()<0){

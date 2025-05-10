@@ -16,6 +16,10 @@ export default function MealItem({ product, isAdmin, onEdit }) {
   const [isEditingUnits, setIsEditingUnits] = useState(false);
   const [updatedUnits, setUpdatedUnits] = useState(product.units);
 
+  const cartItem = cartContxt.items.find((item) => item.id === product.id);
+const addedQuantity = cartItem ? cartItem.quantity : 0;
+
+
   function handleAddMeal() {
     cartContxt.addItems({ ...product, quantity });
   }
@@ -109,7 +113,17 @@ export default function MealItem({ product, isAdmin, onEdit }) {
           <p className="meal-item-description">{product.description}</p>
         </div>
         <p className="meal-item-actions">
-          {!isAdmin && <Buttons onClick={handleAddMeal}>Add to Cart</Buttons>}
+          {!isAdmin && (
+  <>
+    <Buttons onClick={handleAddMeal}>Add to Cart</Buttons>
+    {addedQuantity > 0 && (
+      <span style={{ marginLeft: '10px', color: '#ffc404' }}>
+        Added: {addedQuantity}
+      </span>
+    )}
+  </>
+)}
+
           {isAdmin && (
             <div className="admin-actions">
               <EditIcon

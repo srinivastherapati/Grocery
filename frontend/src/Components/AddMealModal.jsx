@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal, Box, TextField, Button, Typography,Select, MenuItem, FormControl, InputLabel } from "@mui/material";
 import useHttp from "../hooks/useHttp";
 import { addProduct, updateProduct } from "./ServerRequests";
+import axios from "axios";
 
 const modalStyle = {
   position: "absolute",
@@ -31,6 +32,8 @@ export default function AddMealModal({
   const [error, setError] = useState(null);
   const [units,setUnits]= useState(currentProduct.units);
   const [category, setCategory] = useState(currentProduct.category);
+  const [categories, setCategories] = useState([]);
+
 
   const { sendRequest } = useHttp();
 
@@ -46,6 +49,20 @@ export default function AddMealModal({
       setCategory(currentProduct.category);
     }
   }, [currentProduct]);
+
+useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get("http://localhost:8080/api/categories/all");
+      setCategories(res.data);
+    } catch (err) {
+      console.error("Error fetching categories", err);
+    }
+  };
+
 
   const handleSubmit = async () => {
     const productData = {
@@ -132,15 +149,14 @@ export default function AddMealModal({
          <FormControl fullWidth margin="normal" required>
   <InputLabel>Category</InputLabel>
   <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-    <MenuItem value="FOOD">FOOD</MenuItem>
-    <MenuItem value="VEGETABLES">VEGETABLES</MenuItem>
-    <MenuItem value="SNACKS">SNACKS</MenuItem>
-    <MenuItem value="BEVERAGES">BEVERAGES</MenuItem>
-    <MenuItem value="DAIRY">DAIRY</MenuItem>
-    <MenuItem value="MEAT">MEAT</MenuItem>
-    <MenuItem value="TOBACO">TOBACO</MenuItem>
+    {categories.map((cat) => (
+      <MenuItem key={cat} value={cat.name}>
+        {cat.name}
+      </MenuItem>
+    ))}
   </Select>
 </FormControl>
+
             <TextField
             label="Price"
             fullWidth
