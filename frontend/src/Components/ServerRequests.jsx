@@ -148,3 +148,25 @@ export const updateProductRating = async (userId, productId, rating) => {
     throw error;
   }
 };
+
+// Add a new category
+export const addCategory = async (categoryData) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/categories/add`, categoryData);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding category:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || "Error adding category");
+  }
+};
+
+// Get all categories
+export const getCategories = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/categories/get`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching categories:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || "Error fetching categories");
+  }
+};

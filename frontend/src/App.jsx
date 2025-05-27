@@ -5,6 +5,7 @@ import Checkout from "./Components/Checkout";
 import Header from "./Components/Header";
 import Meals from "./Components/Meals";
 import Sidebar from "./Components/Sidebar";
+import { getCategories } from "./Components/ServerRequests.jsx"; // Import getCategories
 import CustomerOrders from "./Components/CustomerOrders";
 import AllOrders from "./Components/AllOrders";
 import AllUsers from "./Components/AllUsers";
@@ -14,6 +15,9 @@ import { UserProgressContextProvider } from "./Components/Store/UserProgressCont
 function App() {
   const [currentPage, setCurrentPage] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState(null);
 
   const [userData, setUserData] = useState(
     JSON.parse(localStorage.getItem("userDetails"))
@@ -24,6 +28,31 @@ function App() {
     const isLoggedIn = localStorage.getItem("loggedIn") === "true";
     setLoggedIn(isLoggedIn);
   }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setIsLoadingCategories(true);
+        const fetchedCategories = await getCategories();
+        setCategories(fetchedCategories || []); // Ensure it's an array
+        setCategoryError(null);
+      } catch (error) {
+        setCategoryError(error.message || "Failed to fetch categories");
+        setCategories([]); // Set to empty array on error
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    if (loggedIn) { // Only fetch if logged in
+       fetchCategories();
+    } else {
+       // Clear categories if logged out
+       setCategories([]);
+       setIsLoadingCategories(true); // Reset loading state for next login
+       setCategoryError(null);
+    }
+  }, [loggedIn]); // Re-fetch if login status changes
 
   const handleLogout = () => {
     localStorage.removeItem("loggedIn");
@@ -48,31 +77,27 @@ function App() {
             onLogout={handleLogout}
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
+            categories={categories} // New prop
+            isLoadingCategories={isLoadingCategories} // New prop
+            categoryError={categoryError} // New prop
           />
           
           <div style={{ marginLeft: "250px", width: "calc(100% - 250px)" }}>
             <Header isAdmin={userData.role==='admin'} />
-            {currentPage == "food" && (
-              <Meals isAdmin={userData.role==='admin'} category={"food"} />
+            
+            {/* Handle loading and error states for categories */}
+            {loggedIn && isLoadingCategories && <p>Loading categories...</p>}
+            {loggedIn && !isLoadingCategories && categoryError && <p>Error loading categories: {categoryError}</p>}
+            
+            {/* Render Meals component if a category is selected and loaded */}
+            {loggedIn && !isLoadingCategories && !categoryError && categories.find(cat => cat.name.toLowerCase() === currentPage.toLowerCase()) && (
+              <Meals 
+                isAdmin={userData.role === 'admin'} 
+                category={categories.find(cat => cat.name.toLowerCase() === currentPage.toLowerCase()).name} 
+              />
             )}
-            {currentPage == "dairy" && (
-              <Meals isAdmin={userData.role==='admin'} category={"dairy"} />
-            )}
-            {currentPage == "snacks" && (
-              <Meals isAdmin={userData.role==='admin'} category={"snacks"} />
-            )}
-             {currentPage == "meat" && (
-              <Meals isAdmin={userData.role==='admin'} category={"meat"} />
-            )}
-             {currentPage == "beverages" && (
-              <Meals isAdmin={userData.role==='admin'} category={"beverages"} />
-            )}
-             {currentPage == "vegetables" && (
-              <Meals isAdmin={userData.role==='admin'} category={"vegetables"} />
-            )}
-            {currentPage == "tobacco" && (
-              <Meals isAdmin={userData.role==='admin'} category={"tobacco"} />
-            )}
+
+            {/* Keep other currentPage checks for non-category pages */}
             {userData.role!='admin' && currentPage == "your-orders" && <CustomerOrders />}
             {userData.role==='admin' && currentPage == "all-orders" && <AllOrders />}
             {userData.role==='admin' && currentPage == "all-users" && <AllUsers />}

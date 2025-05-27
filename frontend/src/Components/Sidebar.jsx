@@ -2,61 +2,49 @@ import React from "react";
 import "./Sidebar.css";
 import Buttons from "./UI/Buttons";
 
-const Sidebar = ({ userData, onLogout, currentPage, setCurrentPage }) => {
-  const isActive = (page) => currentPage === page;
+const Sidebar = ({ 
+  userData, 
+  onLogout, 
+  currentPage, 
+  setCurrentPage, 
+  categories, 
+  isLoadingCategories, 
+  categoryError 
+}) => {
+  // isActive can be simplified or used for static items if any remain in this exact style
+  // For dynamic categories, the active check will be inline
 
   return (
     <div className="sidebar">
       <h2 className="sidebar-title">Hello, {userData.userName}</h2>
       <div>
         <ul className="sidebar-categories">
-          <li 
-            className={isActive("food") ? "active" : ""} 
-            onClick={() => setCurrentPage("food")}
-          >
-            FOOD
-          </li>
-          
-          <li 
-            className={isActive("vegetables") ? "active" : ""} 
-            onClick={() => setCurrentPage("vegetables")}
-          >
-            VEGETABLES
-          </li>
-          <li 
-            className={isActive("dairy") ? "active" : ""} 
-            onClick={() => setCurrentPage("dairy")}
-          >
-            DAIRY
-          </li>
-          <li 
-            className={isActive("meat") ? "active" : ""} 
-            onClick={() => setCurrentPage("meat")}
-          >
-            MEAT
-          </li>
-          <li 
-            className={isActive("snacks") ? "active" : ""} 
-            onClick={() => setCurrentPage("snacks")}
-          >
-            SNACKS
-          </li>
-          <li 
-            className={isActive("beverages") ? "active" : ""} 
-            onClick={() => setCurrentPage("beverages")}
-          >
-            BEVERAGES
-          </li>
-         
-          <li 
-            className={isActive("tobacco") ? "active" : ""} 
-            onClick={() => setCurrentPage("tobacco")}
-          >
-            TOBACCO
-          </li>
+          {/* Dynamic Categories Section */}
+          {isLoadingCategories && (
+            <li>Loading categories...</li>
+          )}
+          {categoryError && (
+            <li style={{ color: 'red' }}>Error: {categoryError}</li>
+          )}
+          {!isLoadingCategories && !categoryError && categories && categories.length > 0 && (
+            categories.map((category) => (
+              <li
+                key={category.id}
+                className={currentPage.toLowerCase() === category.name.toLowerCase() ? "active" : ""}
+                onClick={() => setCurrentPage(category.name)}
+              >
+                {category.name.toUpperCase()}
+              </li>
+            ))
+          )}
+          {!isLoadingCategories && !categoryError && categories && categories.length === 0 && (
+            <li>No categories available.</li>
+          )}
+
+          {/* Static Links */}
           {userData.role !== "admin" && (
             <li 
-              className={isActive("your-orders") ? "active" : ""} 
+              className={currentPage === "your-orders" ? "active" : ""} 
               onClick={() => setCurrentPage("your-orders")}
             >
               YOUR ORDERS
@@ -64,7 +52,7 @@ const Sidebar = ({ userData, onLogout, currentPage, setCurrentPage }) => {
           )}
           {userData.role === "admin" && (
             <li 
-              className={isActive("all-orders") ? "active" : ""} 
+              className={currentPage === "all-orders" ? "active" : ""} 
               onClick={() => setCurrentPage("all-orders")}
             >
               ORDERS
@@ -72,7 +60,7 @@ const Sidebar = ({ userData, onLogout, currentPage, setCurrentPage }) => {
           )}
           {userData.role === "admin" && (
             <li 
-              className={isActive("all-users") ? "active" : ""} 
+              className={currentPage === "all-users" ? "active" : ""} 
               onClick={() => setCurrentPage("all-users")}
             >
               USERS

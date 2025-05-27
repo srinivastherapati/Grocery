@@ -1,12 +1,13 @@
 package com.example.StoreManagement.Controllers;
 
-import com.example.StoreManagement.Model.Category;
 import com.example.StoreManagement.Model.Products;
 import com.example.StoreManagement.Repositories.ProductsRepo;
+import com.example.StoreManagement.Service.CategoryService;
 import com.example.StoreManagement.Service.ProductsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.util.Optional; // Ensure Optional is imported, though likely already present
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
@@ -20,7 +21,15 @@ public class ProductsController {
     @Autowired
     private ProductsService productsService;
     @Autowired
-    private  ProductsRepo productsRepo;
+    private ProductsRepo productsRepo;
+    private final CategoryService categoryService;
+
+    @Autowired
+    public ProductsController(ProductsService productsService, ProductsRepo productsRepo, CategoryService categoryService) {
+        this.productsService = productsService;
+        this.productsRepo = productsRepo;
+        this.categoryService = categoryService;
+    }
 
     @PostMapping("/add")
     public ResponseEntity<?> createProduct(@RequestBody Products products){
@@ -39,15 +48,18 @@ public class ProductsController {
         if(products.getImageUrl()==null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("product image required");
         }
-        try {
-            Category validCategory = Category.valueOf(products.getCategory().toUpperCase());
-            if(validCategory.equals(Category.valueOf("VEGETABLES")) ||
-                    validCategory.equals(Category.valueOf("DAIRY"))){
-                products.setRefundable(false);
-            }
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid category: " + products.getCategory());
+
+        // New category validation
+        if (products.getCategory() == null || products.getCategory().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Product category cannot be empty.");
         }
+        Optional<com.example.StoreManagement.Model.Category> categoryOptional = categoryService.findCategoryByName(products.getCategory().trim());
+        if (categoryOptional.isEmpty()) {
+            return ResponseEntity.badRequest().body("Invalid category: " + products.getCategory() + ". This category does not exist.");
+        }
+        // Set category from validated category object, ensuring consistency (e.g. case)
+        products.setCategory(categoryOptional.get().getName());
+        products.setRefundable(true); // Defaulting to true
 
         if (products.getStock()<0){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("stock values can't be negative");
@@ -126,15 +138,15 @@ public class ProductsController {
         if(updateRequest.getImageUrl()!=null){
             product.setImageUrl(updateRequest.getImageUrl());
         }
-        if (updateRequest.getCategory() != null) {
-            try {
-                // Validate and set the category
-                Category validCategory = Category.valueOf(updateRequest.getCategory().toUpperCase());
-                product.setCategory(String.valueOf(validCategory));
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body("Invalid category: " + updateRequest.getCategory());
+        if (updateRequest.getCategory() != null && !updateRequest.getCategory().trim().isEmpty()) {
+            Optional<com.example.StoreManagement.Model.Category> categoryOptional = categoryService.findCategoryByName(updateRequest.getCategory().trim());
+            if (categoryOptional.isEmpty()) {
+                return ResponseEntity.badRequest().body("Invalid category: " + updateRequest.getCategory() + ". This category does not exist.");
             }
+            product.setCategory(categoryOptional.get().getName()); // Set the validated category name
+        } else if (updateRequest.getCategory() != null && updateRequest.getCategory().trim().isEmpty()) {
+            // Handle case where category is explicitly set to empty if allowed, or return bad request
+            return ResponseEntity.badRequest().body("Product category cannot be set to empty.");
         }
 
         // Save the updated product

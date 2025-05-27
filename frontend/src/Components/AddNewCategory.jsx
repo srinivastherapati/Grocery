@@ -1,19 +1,36 @@
 import React, { useState } from "react";
 import { Box, Button, Modal, TextField, Typography } from "@mui/material";
+import { addCategory } from "./ServerRequests.jsx"; // Import addCategory
 
 const AddCategoryModal = ({ open, onClose, onAddSuccess }) => {
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Call the onAddSuccess callback with the new category data
-    onAddSuccess({ name: categoryName, description: categoryDescription });
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    // Reset the form and close the modal
-    setCategoryName("");
-    setCategoryDescription("");
-    onClose();
+    const categoryData = {
+      name: categoryName,
+      description: categoryDescription === "" ? null : categoryDescription,
+    };
+
+    try {
+      await addCategory(categoryData);
+      onAddSuccess(); // Parent handles success (e.g., reload, close modal via its own state)
+      
+      // Reset form and close modal on success, as per original flow
+      setCategoryName("");
+      setCategoryDescription("");
+      onClose(); 
+    } catch (err) {
+      setSubmitError(err.message || "An unexpected error occurred while adding the category.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -35,6 +52,11 @@ const AddCategoryModal = ({ open, onClose, onAddSuccess }) => {
           Add New Category
         </Typography>
         <form onSubmit={handleSubmit}>
+          {submitError && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {submitError}
+            </Typography>
+          )}
           <TextField
             label="Category Name"
             variant="outlined"
@@ -66,6 +88,7 @@ const AddCategoryModal = ({ open, onClose, onAddSuccess }) => {
             <Button
               type="submit"
               variant="contained"
+              disabled={isSubmitting}
               sx={{
                 backgroundColor: "#ffc404",
                 color: "black",
@@ -73,7 +96,7 @@ const AddCategoryModal = ({ open, onClose, onAddSuccess }) => {
                 "&:hover": { backgroundColor: "#e6b800" },
               }}
             >
-              Add Category
+              {isSubmitting ? "Adding..." : "Add Category"}
             </Button>
           </Box>
         </form>
